@@ -1,0 +1,16 @@
+{
+	"name": "ezchrono",
+	"version": "0.1.0",
+	"private": true,
+	"type": "module",
+	"scripts": {
+		"install:all": "cd backend && bun install && cd ../frontend && bun install",
+		"dev:backend": "cd backend && bun --watch src/index.ts",
+		"dev:frontend": "cd frontend && bun run dev",
+		"test": "cd backend && bun test",
+		"typecheck": "cd backend && bun run typecheck",
+		"build": "cd frontend && bun run build",
+		"start": "cd backend && bun src/index.ts",
+		"check": "bun run typecheck && bun test && cd frontend && bunx biome ci && bun run build"
+	}
+}

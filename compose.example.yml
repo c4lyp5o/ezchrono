@@ -1,0 +1,16 @@
+# Copy to compose.yml and fill in. Never commit real secrets.
+services:
+  ezchrono:
+    image: calypso666/ezchrono:latest
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:5100:5100"
+    environment:
+      EZCHRONO_ADMIN_EMAIL: admin@example.com
+      EZCHRONO_ADMIN_PASSWORD: change-me-to-a-long-passphrase
+      # Optional. Generated and stored in the database if unset.
+      # EZCHRONO_SECRET: ""
+      EZCHRONO_TZ: UTC
+      EZCHRONO_OPEN_SIGNUP: "0"
+    volumes:
+      - ./data:/app/data

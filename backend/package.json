@@ -1,0 +1,22 @@
+{
+	"name": "ezchrono-backend",
+	"version": "0.1.0",
+	"private": true,
+	"type": "module",
+	"scripts": {
+		"dev": "bun --watch src/index.ts",
+		"start": "bun src/index.ts",
+		"test": "bun test",
+		"typecheck": "tsc --noEmit"
+	},
+	"dependencies": {
+		"@elysiajs/openapi": "^1.4.16",
+		"@elysiajs/static": "^1.4.10",
+		"croner": "^11.0.0",
+		"elysia": "^1.4.30"
+	},
+	"devDependencies": {
+		"@types/bun": "latest",
+		"typescript": "^5.9.0"
+	}
+}
