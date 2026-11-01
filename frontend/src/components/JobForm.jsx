@@ -70,9 +70,9 @@ export default function JobForm({ job, quota, onClose, onSaved }) {
 				aria-label={job ? "Edit cron" : "Add cron"}
 				onSubmit={submit}
 				noValidate
-				initial={{ y: 16, opacity: 0 }}
-				animate={{ y: 0, opacity: 1 }}
-				exit={{ y: 16, opacity: 0 }}
+				initial={{ y: 12, opacity: 0, scale: 0.98 }}
+				animate={{ y: 0, opacity: 1, scale: 1 }}
+				exit={{ y: 8, opacity: 0, scale: 0.98 }}
 				onClick={(e) => e.stopPropagation()}
 			>
 				<h3>{job ? "Edit cron" : "Add cron"}</h3>

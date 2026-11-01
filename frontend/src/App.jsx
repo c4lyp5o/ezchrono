@@ -1,5 +1,8 @@
 import { useCallback, useEffect, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
+import { EASE, spring } from "./ez/motion";
+import Footer from "./components/Footer.jsx";
+import ThemeSwitch from "./components/ThemeSwitch.jsx";
 import { api } from "./api.js";
 import SignIn from "./components/SignIn.jsx";
 import UserView from "./components/UserView.jsx";
@@ -29,7 +32,7 @@ export default function App() {
 	}
 
 	if (me === undefined) {
-		return <div className="boot">Loading…</div>;
+		return <div className="boot">Checking your session…</div>;
 	}
 
 	return (
@@ -48,13 +51,17 @@ export default function App() {
 				<motion.div
 					key="app"
 					className="shell"
-					initial={{ opacity: 0, y: 6 }}
+					initial={{ opacity: 0, y: 8 }}
 					animate={{ opacity: 1, y: 0 }}
-					transition={{ duration: 0.2 }}
+					transition={{ duration: 0.32, ease: EASE }}
 				>
 					<header className="topbar">
 						<div className="brand">
-							ez<span>chrono</span>
+							<span className="mark" aria-hidden="true">
+								cr
+							</span>
+							ezchrono
+							<span className="scope">Cron for HTTP</span>
 						</div>
 						<nav className="tabs" aria-label="Sections">
 							<button
@@ -64,6 +71,13 @@ export default function App() {
 								onClick={() => setView("jobs")}
 							>
 								My jobs
+								{view === "jobs" && (
+									<motion.span
+										layoutId="tab-line"
+										className="sel-line"
+										transition={spring}
+									/>
+								)}
 							</button>
 							{me.role === "admin" && (
 								<button
@@ -73,23 +87,50 @@ export default function App() {
 									onClick={() => setView("admin")}
 								>
 									Admin
+									{view === "admin" && (
+										<motion.span
+											layoutId="tab-line"
+											className="sel-line"
+											transition={spring}
+										/>
+									)}
 								</button>
 							)}
 						</nav>
 						<div className="who">
 							<span className="email">{me.email}</span>
-							<button type="button" className="ghost" onClick={signOut}>
+							<ThemeSwitch />
+							<button
+								type="button"
+								className="ghost small-btn"
+								onClick={signOut}
+							>
 								Sign out
 							</button>
 						</div>
 					</header>
 					<main className="content">
-						{view === "admin" && me.role === "admin" ? (
-							<AdminView key="admin" />
-						) : (
-							<UserView key="jobs" quota={me.quota} />
-						)}
+						<AnimatePresence mode="wait">
+							<motion.div
+								key={view}
+								initial={{ opacity: 0, y: 8 }}
+								animate={{ opacity: 1, y: 0 }}
+								exit={{
+									opacity: 0,
+									y: -6,
+									transition: { duration: 0.14, ease: EASE },
+								}}
+								transition={{ duration: 0.32, ease: EASE }}
+							>
+								{view === "admin" && me.role === "admin" ? (
+									<AdminView />
+								) : (
+									<UserView quota={me.quota} />
+								)}
+							</motion.div>
+						</AnimatePresence>
 					</main>
+					<Footer />
 				</motion.div>
 			)}
 		</AnimatePresence>

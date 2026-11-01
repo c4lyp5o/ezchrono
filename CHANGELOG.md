@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-11-01
+
+### Changed
+- The frontend now uses the shared ez house style (ezllm/ezdyndns): Public Sans, the dark ground and panels, pale status pills, a 1px selection line under the active tab, and Motion transitions between screens.
+- The sign-in screen has the three.js backdrop used across the ez apps.
+- A light/dark theme switch in the top bar, stored under `ez.theme` (dark by default).
+
+### Added
+- A footer with the running version and a link to the source repository.
+
 ## [0.2.0] - 2026-11-01
 
 ### Added

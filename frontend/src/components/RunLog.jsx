@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import { motion } from "motion/react";
+import { AnimatePresence, motion } from "motion/react";
+import { EASE, SlideRow } from "../ez/motion";
 import { api } from "../api.js";
 import { relativeTime } from "../format.js";
 
@@ -30,9 +31,10 @@ export default function RunLog({ job, onClose }) {
 				role="dialog"
 				aria-modal="true"
 				aria-label={`History for ${job.name}`}
-				initial={{ y: 16, opacity: 0 }}
-				animate={{ y: 0, opacity: 1 }}
-				exit={{ y: 16, opacity: 0 }}
+				initial={{ y: 12, opacity: 0, scale: 0.98 }}
+				animate={{ y: 0, opacity: 1, scale: 1 }}
+				exit={{ y: 8, opacity: 0, scale: 0.98 }}
+				transition={{ duration: 0.22, ease: EASE }}
 				onClick={(e) => e.stopPropagation()}
 			>
 				<div className="page-head">
@@ -46,26 +48,40 @@ export default function RunLog({ job, onClose }) {
 						{error}
 					</p>
 				)}
-				{runs === null && !error && <p className="muted">Loading…</p>}
-				{runs && runs.length === 0 && <p className="muted">No runs yet.</p>}
+				{runs === null && !error && (
+					<p className="muted">Loading run history…</p>
+				)}
+				{runs && runs.length === 0 && (
+					<div className="card empty">No runs yet.</div>
+				)}
 				{runs && runs.length > 0 && (
 					<ul className="runs">
-						{runs.map((r) => (
-							<li key={r.id}>
-								<span
-									className={`dot ${r.status === "ok" ? "ok" : r.status === "quota" ? "warn" : "bad"}`}
-									aria-hidden="true"
-								/>
-								<span className="mono small">{relativeTime(r.started_at)}</span>
-								<span className="chip">{r.trigger}</span>
-								<strong>{r.status}</strong>
-								<span className="muted small">
-									{r.http_status ? `HTTP ${r.http_status}` : ""}{" "}
-									{r.duration_ms !== null ? `· ${r.duration_ms} ms` : ""}
-								</span>
-								{r.error && <span className="small error-text">{r.error}</span>}
-							</li>
-						))}
+						<AnimatePresence initial={false}>
+							{runs.map((r) => (
+								<SlideRow as="li" key={r.id}>
+									<span
+										className={`dot ${r.status === "ok" ? "ok" : r.status === "quota" ? "warn" : "bad"}`}
+										aria-hidden="true"
+									/>
+									<span className="small num-face">
+										{relativeTime(r.started_at)}
+									</span>
+									<span className="chip">{r.trigger}</span>
+									<span
+										className={`chip ${r.status === "ok" ? "ok" : r.status === "quota" ? "warn" : "bad"}`}
+									>
+										{r.status}
+									</span>
+									<span className="muted small">
+										{r.http_status ? `HTTP ${r.http_status}` : ""}{" "}
+										{r.duration_ms !== null ? `· ${r.duration_ms} ms` : ""}
+									</span>
+									{r.error && (
+										<span className="small error-text">{r.error}</span>
+									)}
+								</SlideRow>
+							))}
+						</AnimatePresence>
 					</ul>
 				)}
 			</motion.section>
