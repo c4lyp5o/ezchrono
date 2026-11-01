@@ -1,9 +1,9 @@
+import { motion } from "motion/react";
 import { useState } from "react";
 import { api } from "../api.js";
-import { lazy, Suspense } from "react";
-
-// three.js is only needed on this screen, so keep it out of the main bundle.
-const Backdrop = lazy(() => import("./Backdrop.jsx"));
+// The ez scene; it imports three.js lazily, so it stays out of the main bundle.
+import Backdrop from "../ez/Backdrop";
+import { Collapse, EASE } from "../ez/motion";
 
 export default function SignIn({ onSignedIn }) {
 	const [mode, setMode] = useState("login");
@@ -34,14 +34,25 @@ export default function SignIn({ onSignedIn }) {
 
 	return (
 		<div className="signin">
-			<Suspense fallback={null}>
-				<Backdrop />
-			</Suspense>
-			<form className="card signin-card" onSubmit={submit} noValidate>
+			<Backdrop className="ez-backdrop" opacity={0.45} nodes={18} />
+			<motion.form
+				className="card signin-card"
+				onSubmit={submit}
+				noValidate
+				initial={{ opacity: 0, y: 12 }}
+				animate={{ opacity: 1, y: 0 }}
+				transition={{ duration: 0.42, ease: EASE }}
+			>
+				<div className="brand">
+					<span className="mark" aria-hidden="true">
+						cr
+					</span>
+					ezchrono
+				</div>
 				<h1>
-					ez<span>chrono</span>
+					{mode === "signup" ? "Create an account" : "Sign in to ezchrono"}
 				</h1>
-				<p className="muted">
+				<p className="muted" style={{ marginTop: 6 }}>
 					Schedule HTTP calls on a cron. Quotas keep it fair.
 				</p>
 
@@ -66,11 +77,11 @@ export default function SignIn({ onSignedIn }) {
 					onChange={(e) => setPassword(e.target.value)}
 				/>
 
-				{error && (
-					<p className="error" role="alert">
+				<Collapse open={!!error}>
+					<p className="error small" role="alert" style={{ marginTop: 10 }}>
 						{error}
 					</p>
-				)}
+				</Collapse>
 
 				<button type="submit" className="primary" disabled={busy}>
 					{busy ? "Working…" : mode === "signup" ? "Create account" : "Sign in"}
@@ -87,7 +98,7 @@ export default function SignIn({ onSignedIn }) {
 						? "Need an account? Sign up"
 						: "Have an account? Sign in"}
 				</button>
-			</form>
+			</motion.form>
 		</div>
 	);
 }

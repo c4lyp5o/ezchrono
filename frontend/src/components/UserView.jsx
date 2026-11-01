@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
+import { Collapse, EASE, SlideRow, Stagger, StaggerItem } from "../ez/motion";
 import { api } from "../api.js";
 import { relativeTime, statusTone, quotaTone, percent } from "../format.js";
 import JobForm from "./JobForm.jsx";
@@ -69,13 +70,14 @@ export default function UserView({ quota }) {
 	const runsLimit = usage?.runs24h.limit ?? quota.maxRunsPerDay;
 
 	return (
-		<section className="stack">
-			<div className="page-head">
+		<Stagger as="section" className="stack">
+			<StaggerItem className="page-head">
 				<div>
 					<h2>My jobs</h2>
 					<p className="muted">
-						Minimum interval {quota.minIntervalSeconds}s. Runs count toward a
-						daily limit.
+						Minimum interval{" "}
+						<span className="num-face">{quota.minIntervalSeconds}</span> s. Runs
+						count toward a daily limit.
 					</p>
 				</div>
 				<button
@@ -89,83 +91,89 @@ export default function UserView({ quota }) {
 				<button type="button" className="ghost" onClick={() => setPwOpen(true)}>
 					Change password
 				</button>
-			</div>
+			</StaggerItem>
 
-			<div className="quota-row">
+			<StaggerItem className="quota-row">
 				<Meter label="Jobs" used={jobsUsed} limit={jobsLimit} />
-				<Meter label="Runs, last 24h" used={runsUsed} limit={runsLimit} />
-			</div>
+				<Meter label="Runs, last 24 hours" used={runsUsed} limit={runsLimit} />
+			</StaggerItem>
 
-			{error && (
+			<Collapse open={!!error}>
 				<p className="error" role="alert">
 					{error}
 				</p>
-			)}
+			</Collapse>
 
-			{jobs === null ? (
-				<p className="muted">Loading…</p>
-			) : jobs.length === 0 ? (
-				<div className="card empty">
-					<p>
-						No jobs yet. Add one and ezchrono will call the URL on schedule.
-					</p>
-				</div>
-			) : (
-				<ul className="job-list">
-					{jobs.map((job) => (
-						<li key={job.id} className="card job">
-							<div className="job-main">
-								<div className="job-title">
-									<span
-										className={`dot ${statusTone(job.last_status)}`}
-										aria-hidden="true"
-									/>
-									<strong>{job.name}</strong>
-									{!job.enabled && <span className="chip">paused</span>}
-								</div>
-								<code className="mono small">
-									{job.schedule} · {job.method} {job.target_url}
-								</code>
-								<div className="job-meta small muted">
-									Next {job.enabled ? relativeTime(job.next_run_at) : "—"} ·
-									Last {relativeTime(job.last_run_at)} ·{" "}
-									{job.last_status ?? "never run"}
-								</div>
-							</div>
-							<div className="job-actions">
-								<button
-									type="button"
-									className="ghost"
-									onClick={() => runNow(job)}
-								>
-									Run now
-								</button>
-								<button
-									type="button"
-									className="ghost"
-									onClick={() => toggle(job)}
-								>
-									{job.enabled ? "Pause" : "Resume"}
-								</button>
-								<button
-									type="button"
-									className="ghost"
-									onClick={() => setOpenJob(job)}
-								>
-									History
-								</button>
-								<button
-									type="button"
-									className="danger"
-									onClick={() => remove(job)}
-								>
-									Delete
-								</button>
-							</div>
-						</li>
-					))}
-				</ul>
-			)}
+			<StaggerItem>
+				{jobs === null ? (
+					<p className="muted">Loading jobs…</p>
+				) : jobs.length === 0 ? (
+					<div className="card empty">
+						<p>
+							No jobs yet. Add one and ezchrono will call the URL on schedule.
+						</p>
+					</div>
+				) : (
+					<ul className="job-list">
+						<AnimatePresence initial={false}>
+							{jobs.map((job) => (
+								<SlideRow as="li" key={job.id} className="card job">
+									<div className="job-main">
+										<div className="job-title">
+											<span
+												className={`dot ${statusTone(job.last_status)}`}
+												aria-hidden="true"
+											/>
+											<strong>{job.name}</strong>
+											{!job.enabled && (
+												<span className="chip warn">Paused</span>
+											)}
+										</div>
+										<code className="mono small">
+											{job.schedule} · {job.method} {job.target_url}
+										</code>
+										<div className="job-meta small muted">
+											Next {job.enabled ? relativeTime(job.next_run_at) : "—"} ·
+											Last {relativeTime(job.last_run_at)} ·{" "}
+											{job.last_status ?? "never run"}
+										</div>
+									</div>
+									<div className="job-actions">
+										<button
+											type="button"
+											className="ghost"
+											onClick={() => runNow(job)}
+										>
+											Run now
+										</button>
+										<button
+											type="button"
+											className="ghost"
+											onClick={() => toggle(job)}
+										>
+											{job.enabled ? "Pause" : "Resume"}
+										</button>
+										<button
+											type="button"
+											className="ghost"
+											onClick={() => setOpenJob(job)}
+										>
+											History
+										</button>
+										<button
+											type="button"
+											className="danger"
+											onClick={() => remove(job)}
+										>
+											Delete
+										</button>
+									</div>
+								</SlideRow>
+							))}
+						</AnimatePresence>
+					</ul>
+				)}
+			</StaggerItem>
 
 			<AnimatePresence>
 				{editing && (
@@ -194,7 +202,7 @@ export default function UserView({ quota }) {
 					<RunLog key="log" job={openJob} onClose={() => setOpenJob(null)} />
 				)}
 			</AnimatePresence>
-		</section>
+		</Stagger>
 	);
 }
 
@@ -205,16 +213,17 @@ function Meter({ label, used, limit }) {
 		<div className="card meter">
 			<div className="meter-head">
 				<span>{label}</span>
-				<span className="mono">
-					{used} / {limit}
+				<span>
+					<span className="figure">{used.toLocaleString("en-US")}</span> of{" "}
+					{limit.toLocaleString("en-US")}
 				</span>
 			</div>
 			<div className="bar">
 				<motion.span
 					className={`fill ${tone}`}
-					initial={false}
-					animate={{ width: `${p}%` }}
-					transition={{ duration: 0.4, ease: "easeOut" }}
+					initial={{ scaleX: 0 }}
+					animate={{ scaleX: p / 100 }}
+					transition={{ duration: 0.42, ease: EASE }}
 				/>
 			</div>
 		</div>
