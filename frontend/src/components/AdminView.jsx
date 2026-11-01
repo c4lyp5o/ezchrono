@@ -60,6 +60,16 @@ export default function AdminView() {
 		}
 	}
 
+	async function resetPassword(u) {
+		const next = window.prompt(`New password for ${u.email} (10+ characters):`);
+		if (next === null) return;
+		if (next.length < 10) {
+			setError("Password must be at least 10 characters.");
+			return;
+		}
+		await patchUser(u.id, { password: next });
+	}
+
 	function draft(id, field, value) {
 		setDrafts((d) => ({ ...d, [id]: { ...d[id], [field]: value } }));
 	}
@@ -183,6 +193,13 @@ export default function AdminView() {
 											}
 										>
 											{u.role === "admin" ? "Demote" : "Make admin"}
+										</button>
+										<button
+											type="button"
+											className="ghost small-btn"
+											onClick={() => resetPassword(u)}
+										>
+											Reset pw
 										</button>
 										<button
 											type="button"

@@ -2,7 +2,7 @@ import { Elysia, t } from "elysia";
 import crypto from "node:crypto";
 import { DEFAULT_QUOTA, SESSION_TTL_SECONDS } from "../config";
 import { SESSION_COOKIE, signToken } from "../session";
-import { ApiError, currentUser, type Deps } from "../http";
+import { ApiError, currentUser, requireUser, type Deps } from "../http";
 
 const EMAIL = t.String({ format: "email", maxLength: 254 });
 const PASSWORD = t.String({ minLength: 10, maxLength: 200 });
@@ -21,6 +21,10 @@ function checkLoginAllowed(email: string, now: number): void {
 }
 
 function recordFailure(email: string, now: number): void {
+	// Opportunistic sweep: expired windows don't need to be remembered.
+	if (failures.size > 1000) {
+		for (const [key, f] of failures) if (now - f.since >= WINDOW_MS) failures.delete(key);
+	}
 	const f = failures.get(email);
 	if (!f || now - f.since >= WINDOW_MS) failures.set(email, { count: 1, since: now });
 	else f.count++;
@@ -38,19 +42,25 @@ export function authRoutes(deps: Deps) {
 				if (exists) throw new ApiError(409, "Email already registered");
 				const id = crypto.randomUUID();
 				const hash = Bun.password.hashSync(body.password, "argon2id");
-				db.run(
-					`INSERT INTO users (id, email, password_hash, role, max_jobs, max_runs_per_day,
-						min_interval_seconds, created_at) VALUES (?, ?, ?, 'user', ?, ?, ?, ?)`,
-					[
-						id,
-						email,
-						hash,
-						DEFAULT_QUOTA.maxJobs,
-						DEFAULT_QUOTA.maxRunsPerDay,
-						DEFAULT_QUOTA.minIntervalSeconds,
-						Date.now(),
-					],
-				);
+				try {
+					db.run(
+						`INSERT INTO users (id, email, password_hash, role, max_jobs, max_runs_per_day,
+							min_interval_seconds, created_at) VALUES (?, ?, ?, 'user', ?, ?, ?, ?)`,
+						[
+							id,
+							email,
+							hash,
+							DEFAULT_QUOTA.maxJobs,
+							DEFAULT_QUOTA.maxRunsPerDay,
+							DEFAULT_QUOTA.minIntervalSeconds,
+							Date.now(),
+						],
+					);
+				} catch (err) {
+					// A concurrent duplicate signup hits the UNIQUE index first.
+					if (String(err).includes("UNIQUE")) throw new ApiError(409, "Email already registered");
+					throw err;
+				}
 				set.status = 201;
 				return { id, email };
 			},
@@ -91,6 +101,29 @@ export function authRoutes(deps: Deps) {
 			cookie[SESSION_COOKIE].remove();
 			return { ok: true };
 		})
+		.post(
+			"/change-password",
+			({ cookie, body }) => {
+				const user = requireUser(deps, cookie);
+				const row = db
+					.query("SELECT password_hash FROM users WHERE id = ?")
+					.get(user.id) as { password_hash: string } | null;
+				if (!row || !Bun.password.verifySync(body.current_password, row.password_hash)) {
+					throw new ApiError(401, "Current password is incorrect");
+				}
+				db.run("UPDATE users SET password_hash = ? WHERE id = ?", [
+					Bun.password.hashSync(body.new_password, "argon2id"),
+					user.id,
+				]);
+				return { ok: true };
+			},
+			{
+				body: t.Object({
+					current_password: t.String({ maxLength: 200 }),
+					new_password: PASSWORD,
+				}),
+			},
+		)
 		.get("/me", ({ cookie }) => {
 			const user = currentUser(deps, cookie);
 			if (!user) throw new ApiError(401, "Not signed in");

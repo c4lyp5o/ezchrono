@@ -1,9 +1,12 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, test } from "bun:test";
 import { Database } from "bun:sqlite";
 import crypto from "node:crypto";
+import { mkdirSync, rmSync, writeFileSync } from "node:fs";
+import os from "node:os";
+import path from "node:path";
 import { createApp } from "../src/app";
 import { openDb } from "../src/db";
-import { tick, performRun, type JobRow } from "../src/runner";
+import { tick, performRun, pruneRuns, type JobRow } from "../src/runner";
 import { signToken, verifyToken } from "../src/session";
 import { assertValidSchedule, nextRunAfter } from "../src/schedule";
 import { isPrivateAddress, assertPublicTarget } from "../src/ssrf";
@@ -182,6 +185,18 @@ describe("auth", () => {
 		const locked = await api("/auth/login", { method: "POST", body: JSON.stringify({ email, password: PASSWORD }) });
 		expect(locked.status).toBe(429);
 	});
+	test("change-password rotates the password and rejects a wrong current one", async () => {
+		const email = "cp@example.com";
+		const cookie = await makeUser(email);
+		const wrong = await api("/auth/change-password", { method: "POST", body: JSON.stringify({ current_password: "wrong-wrong-wrong", new_password: "new-pass-phrase-1" }) }, cookie);
+		expect(wrong.status).toBe(401);
+		const ok = await api("/auth/change-password", { method: "POST", body: JSON.stringify({ current_password: PASSWORD, new_password: "new-pass-phrase-1" }) }, cookie);
+		expect(ok.status).toBe(200);
+		const fresh = await api("/auth/login", { method: "POST", body: JSON.stringify({ email, password: "new-pass-phrase-1" }) });
+		expect(fresh.status).toBe(200);
+		const stale = await api("/auth/login", { method: "POST", body: JSON.stringify({ email, password: PASSWORD }) });
+		expect(stale.status).toBe(401);
+	});
 	test("requires a session for protected routes", async () => {
 		expect((await api("/jobs")).status).toBe(401);
 	});
@@ -291,6 +306,38 @@ describe("jobs", () => {
 		expect(usage.json.jobs.limit).toBe(3);
 		expect(usage.json.runs24h.limit).toBe(50);
 	});
+
+	test("concurrent manual runs cannot exceed the quota", async () => {
+		const cookie = await makeUser("race@example.com", { max_runs_per_day: 1 });
+		const { json } = await api(
+			"/jobs",
+			{ method: "POST", body: JSON.stringify({ name: "r", schedule: "0 0 1 1 *", target_url: target() }) },
+			cookie,
+		);
+		const [a, b] = await Promise.all([
+			api(`/jobs/${json.id}/run`, { method: "POST" }, cookie),
+			api(`/jobs/${json.id}/run`, { method: "POST" }, cookie),
+		]);
+		expect([a.status, b.status].sort()).toEqual([200, 429]);
+		const runs = await api(`/jobs/${json.id}/runs`, {}, cookie);
+		expect(runs.json.runs.length).toBe(1);
+	});
+
+	test("run history limit is clamped: junk falls back, negatives never 500 or bypass", async () => {
+		const cookie = await makeUser("limits@example.com");
+		const { json } = await api(
+			"/jobs",
+			{ method: "POST", body: JSON.stringify({ name: "l", schedule: "0 0 1 1 *", target_url: target() }) },
+			cookie,
+		);
+		for (let i = 0; i < 3; i++) await api(`/jobs/${json.id}/run`, { method: "POST" }, cookie);
+		const junk = await api(`/jobs/${json.id}/runs?limit=abc`, {}, cookie);
+		expect(junk.status).toBe(200);
+		expect(junk.json.runs.length).toBe(3); // default 50
+		const neg = await api(`/jobs/${json.id}/runs?limit=-5`, {}, cookie);
+		expect(neg.status).toBe(200);
+		expect(neg.json.runs.length).toBe(1); // clamped to 1, not "all rows"
+	});
 });
 
 describe("runner", () => {
@@ -363,6 +410,37 @@ describe("runner", () => {
 		db.run("UPDATE users SET max_runs_per_day = 288 WHERE id = ?", [ownerId]);
 	});
 
+	test("in-flight runs count against the quota: three due jobs with quota 1 fire once", async () => {
+		db.run("DELETE FROM runs");
+		db.run("DELETE FROM jobs");
+		db.run("UPDATE users SET max_runs_per_day = 1 WHERE id = ?", [ownerId]);
+		jobRow({ target_url: target("/burst/1"), next_run_at: 1 });
+		jobRow({ target_url: target("/burst/2"), next_run_at: 1 });
+		jobRow({ target_url: target("/burst/3"), next_run_at: 1 });
+		await tick(db, "UTC", Date.now());
+		await new Promise((r) => setTimeout(r, 400)); // let the in-flight run record
+		const fired = db.query("SELECT COUNT(*) AS n FROM runs WHERE status != 'quota'").get() as { n: number };
+		const skipped = db.query("SELECT COUNT(*) AS n FROM runs WHERE status = 'quota'").get() as { n: number };
+		expect(fired.n).toBe(1);
+		expect(skipped.n).toBe(2);
+		db.run("UPDATE users SET max_runs_per_day = 288 WHERE id = ?", [ownerId]);
+		db.run("DELETE FROM jobs");
+		db.run("DELETE FROM runs");
+	});
+
+	test("run history older than the retention window is pruned", () => {
+		db.run("DELETE FROM runs");
+		const job = jobRow({ target_url: target("/prune") });
+		const old = Date.now() - 40 * 24 * 60 * 60 * 1000;
+		db.run("INSERT INTO runs (id, job_id, user_id, trigger, started_at, status) VALUES ('old-run', ?, ?, 'manual', ?, 'ok')", [job.id, ownerId, old]);
+		db.run("INSERT INTO runs (id, job_id, user_id, trigger, started_at, status) VALUES ('new-run', ?, ?, 'manual', ?, 'ok')", [job.id, ownerId, Date.now()]);
+		const removed = pruneRuns(db, 30);
+		expect(removed).toBe(1);
+		expect(db.query("SELECT 1 FROM runs WHERE id = 'old-run'").get()).toBeNull();
+		expect(db.query("SELECT 1 FROM runs WHERE id = 'new-run'").get()).not.toBeNull();
+		db.run("DELETE FROM runs");
+	});
+
 	test("admin overview is admin-only", async () => {
 		const user = await makeUser("plain@example.com");
 		expect((await api("/admin/overview", {}, user)).status).toBe(403);
@@ -392,5 +470,65 @@ describe("runner", () => {
 		expect(res.status).toBe(200);
 		const list = await api("/admin/users", {}, adminCookie);
 		expect(list.json.users.find((u: { id: string }) => u.id === target.id).max_jobs).toBe(42);
+	});
+
+	test("admin can reset a user's password", async () => {
+		const adminCookie = await makeUser("reset-admin@example.com");
+		makeAdmin("reset-admin@example.com");
+		await makeUser("reset-target@example.com");
+		const targetId = (db.query("SELECT id FROM users WHERE email = ?").get("reset-target@example.com") as { id: string }).id;
+		const res = await api(`/admin/users/${targetId}`, { method: "PATCH", body: JSON.stringify({ password: "reset-pass-phrase" }) }, adminCookie);
+		expect(res.status).toBe(200);
+		const login = await api("/auth/login", { method: "POST", body: JSON.stringify({ email: "reset-target@example.com", password: "reset-pass-phrase" }) });
+		expect(login.status).toBe(200);
+	});
+
+	test("admin overview excludes quota skips from runs and failures", async () => {
+		db.run("DELETE FROM runs");
+		const adminCookie = await makeUser("metrics-admin@example.com");
+		makeAdmin("metrics-admin@example.com");
+		const job = jobRow({ target_url: target("/metrics") });
+		for (const [id, status] of [["m-quota", "quota"], ["m-failed", "failed"], ["m-ok", "ok"]]) {
+			db.run("INSERT INTO runs (id, job_id, user_id, trigger, started_at, status) VALUES (?, ?, ?, 'schedule', ?, ?)", [id, job.id, ownerId, Date.now(), status]);
+		}
+		const ov = await api("/admin/overview", {}, adminCookie);
+		expect(ov.json.runs_24h).toBe(2);
+		expect(ov.json.failed_24h).toBe(1);
+		db.run("DELETE FROM runs");
+	});
+});
+
+describe("static serving", () => {
+	// Hermetic client fixture: the suite must pass on a fresh checkout where
+	// the real client/ build output does not exist yet.
+	const fixture = path.join(os.tmpdir(), `ezchrono-client-${crypto.randomUUID()}`);
+	let fixtureApp: ReturnType<typeof createApp>;
+
+	beforeAll(() => {
+		mkdirSync(path.join(fixture, "assets"), { recursive: true });
+		writeFileSync(path.join(fixture, "index.html"), "<html>fixture-index</html>");
+		writeFileSync(path.join(fixture, "assets", "x.css"), "body { color: red }");
+		fixtureApp = createApp({ db, secret: SECRET, openSignup: true, timezone: "UTC", clientDir: fixture });
+	});
+	afterAll(() => rmSync(fixture, { recursive: true, force: true }));
+
+	test("serves built assets and falls back to index.html for deep links", async () => {
+		const css = await fixtureApp.handle(new Request("http://probe.test/assets/x.css"));
+		expect(css.status).toBe(200);
+		expect(css.headers.get("content-type")).toContain("text/css");
+		const deep = await fixtureApp.handle(new Request("http://probe.test/deep/link"));
+		expect(deep.status).toBe(200);
+		expect(await deep.text()).toContain("fixture-index");
+	});
+	test("malformed percent-encoding is a client error, not a 500", async () => {
+		const res = await fixtureApp.handle(new Request("http://probe.test/%zz"));
+		expect(res.status).toBe(400);
+	});
+	test("encoded traversal falls back to the SPA instead of serving files", async () => {
+		const res = await fixtureApp.handle(new Request("http://probe.test/%2e%2e/%2e%2e/backend/src/config.ts"));
+		const text = await res.text();
+		expect(res.status).toBe(200); // index.html fallback
+		expect(text).toContain("fixture-index");
+		expect(text).not.toContain("DB_FILE");
 	});
 });

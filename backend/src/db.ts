@@ -49,6 +49,8 @@ const MIGRATIONS: string[] = [
 	CREATE INDEX runs_job_started ON runs (job_id, started_at);
 	CREATE TABLE settings (key TEXT PRIMARY KEY, value TEXT NOT NULL);
 	`,
+	// v2: the admin overview filters runs by time alone.
+	`CREATE INDEX runs_started ON runs (started_at);`,
 ];
 
 export function openDb(file: string): Database {

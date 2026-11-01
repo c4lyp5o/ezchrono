@@ -8,6 +8,7 @@ import { jobRoutes } from "./routes/jobs";
 import { adminRoutes } from "./routes/admin";
 
 export function createApp(deps: Deps) {
+	const clientDir = deps.clientDir ?? CLIENT_DIR;
 	return new Elysia()
 		.onError(({ code, error, set }) => {
 			if (error instanceof ApiError) {
@@ -42,12 +43,19 @@ export function createApp(deps: Deps) {
 				set.status = 404;
 				return { error: "Not found" };
 			}
-			const rel = path.normalize(decodeURIComponent(pathname)).replace(/^[/\\]+/, "");
-			const candidate = path.join(CLIENT_DIR, rel);
-			if (rel && candidate.startsWith(CLIENT_DIR + path.sep)) {
+			let rel: string;
+			try {
+				rel = path.normalize(decodeURIComponent(pathname)).replace(/^[/\\]+/, "");
+			} catch {
+				// Malformed percent-encoding is a bad request, not a server fault.
+				set.status = 400;
+				return { error: "Bad request" };
+			}
+			const candidate = path.join(clientDir, rel);
+			if (rel && candidate.startsWith(clientDir + path.sep)) {
 				const asset = Bun.file(candidate);
 				if (asset.size > 0) return file(candidate);
 			}
-			return file(path.join(CLIENT_DIR, "index.html"));
+			return file(path.join(clientDir, "index.html"));
 		});
 }
