@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { api } from "../api.js";
+import { Collapse, CountUp, Stagger, StaggerItem } from "../ez/motion";
 import { relativeTime, quotaTone, percent } from "../format.js";
 
 export default function AdminView() {
@@ -75,175 +76,183 @@ export default function AdminView() {
 	}
 
 	return (
-		<section className="stack">
-			<div className="page-head">
+		<Stagger as="section" className="stack">
+			<StaggerItem className="page-head">
 				<div>
 					<h2>Admin</h2>
 					<p className="muted">
 						All tenants. Changes apply on the next request.
 					</p>
 				</div>
-			</div>
+			</StaggerItem>
 
-			{error && (
+			<Collapse open={!!error}>
 				<p className="error" role="alert">
 					{error}
 				</p>
-			)}
+			</Collapse>
 
-			{overview && (
-				<dl className="stats">
-					<Stat
-						label="Users"
-						value={overview.users}
-						sub={`${overview.disabled_users} disabled`}
-					/>
-					<Stat
-						label="Jobs"
-						value={overview.jobs}
-						sub={`${overview.enabled_jobs} active`}
-					/>
-					<Stat label="Runs, 24h" value={overview.runs_24h} />
-					<Stat
-						label="Failed, 24h"
-						value={overview.failed_24h}
-						tone={overview.failed_24h > 0 ? "warn" : "ok"}
-					/>
-				</dl>
-			)}
+			<StaggerItem>
+				{overview && (
+					<dl className="stats">
+						<Stat
+							label="Users"
+							value={overview.users}
+							sub={`${overview.disabled_users} disabled`}
+						/>
+						<Stat
+							label="Jobs"
+							value={overview.jobs}
+							sub={`${overview.enabled_jobs} active`}
+						/>
+						<Stat label="Runs, 24h" value={overview.runs_24h} />
+						<Stat
+							label="Failed, 24h"
+							value={overview.failed_24h}
+							tone={overview.failed_24h > 0 ? "warn" : "ok"}
+						/>
+					</dl>
+				)}
+			</StaggerItem>
 
-			<h3>Users</h3>
-			<div className="card table-wrap">
-				<table>
-					<thead>
-						<tr>
-							<th scope="col">Email</th>
-							<th scope="col">Role</th>
-							<th scope="col">Jobs</th>
-							<th scope="col">Runs 24h</th>
-							<th scope="col">Max jobs</th>
-							<th scope="col">Max runs/day</th>
-							<th scope="col">Min gap (s)</th>
-							<th scope="col">Status</th>
-							<th scope="col">
-								<span className="sr-only">Actions</span>
-							</th>
-						</tr>
-					</thead>
-					<tbody>
-						{users.map((u) => {
-							const d = drafts[u.id] ?? {};
-							return (
-								<tr key={u.id} className={u.disabled ? "row-off" : ""}>
-									<td className="mono small">{u.email}</td>
-									<td>{u.role}</td>
-									<td>
-										<QuotaCell used={u.job_count} limit={u.max_jobs} />
-									</td>
-									<td>
-										<QuotaCell used={u.runs_24h} limit={u.max_runs_per_day} />
-									</td>
-									<td>
-										<NumInput
-											value={d.max_jobs ?? u.max_jobs}
-											label={`Max jobs for ${u.email}`}
-											onChange={(v) => draft(u.id, "max_jobs", v)}
-										/>
-									</td>
-									<td>
-										<NumInput
-											value={d.max_runs_per_day ?? u.max_runs_per_day}
-											label={`Max runs per day for ${u.email}`}
-											onChange={(v) => draft(u.id, "max_runs_per_day", v)}
-										/>
-									</td>
-									<td>
-										<NumInput
-											value={d.min_interval_seconds ?? u.min_interval_seconds}
-											min={60}
-											label={`Minimum interval for ${u.email}`}
-											onChange={(v) => draft(u.id, "min_interval_seconds", v)}
-										/>
-									</td>
-									<td>{u.disabled ? "disabled" : "active"}</td>
-									<td className="actions">
-										{Object.keys(d).length > 0 && (
+			<StaggerItem className="stack">
+				<h3>Users</h3>
+				<div className="card table-wrap">
+					<table>
+						<thead>
+							<tr>
+								<th scope="col">Email</th>
+								<th scope="col">Role</th>
+								<th scope="col">Jobs</th>
+								<th scope="col">Runs 24h</th>
+								<th scope="col">Max jobs</th>
+								<th scope="col">Max runs/day</th>
+								<th scope="col">Min gap (s)</th>
+								<th scope="col">Status</th>
+								<th scope="col">
+									<span className="sr-only">Actions</span>
+								</th>
+							</tr>
+						</thead>
+						<tbody>
+							{users.map((u) => {
+								const d = drafts[u.id] ?? {};
+								return (
+									<tr key={u.id} className={u.disabled ? "row-off" : ""}>
+										<td className="mono small">{u.email}</td>
+										<td>{u.role}</td>
+										<td>
+											<QuotaCell used={u.job_count} limit={u.max_jobs} />
+										</td>
+										<td>
+											<QuotaCell used={u.runs_24h} limit={u.max_runs_per_day} />
+										</td>
+										<td>
+											<NumInput
+												value={d.max_jobs ?? u.max_jobs}
+												label={`Max jobs for ${u.email}`}
+												onChange={(v) => draft(u.id, "max_jobs", v)}
+											/>
+										</td>
+										<td>
+											<NumInput
+												value={d.max_runs_per_day ?? u.max_runs_per_day}
+												label={`Max runs per day for ${u.email}`}
+												onChange={(v) => draft(u.id, "max_runs_per_day", v)}
+											/>
+										</td>
+										<td>
+											<NumInput
+												value={d.min_interval_seconds ?? u.min_interval_seconds}
+												min={60}
+												label={`Minimum interval for ${u.email}`}
+												onChange={(v) => draft(u.id, "min_interval_seconds", v)}
+											/>
+										</td>
+										<td>{u.disabled ? "disabled" : "active"}</td>
+										<td className="actions">
+											{Object.keys(d).length > 0 && (
+												<button
+													type="button"
+													className="primary small-btn"
+													onClick={() => patchUser(u.id, d)}
+												>
+													Save
+												</button>
+											)}
 											<button
 												type="button"
-												className="primary small-btn"
-												onClick={() => patchUser(u.id, d)}
+												className="ghost small-btn"
+												onClick={() =>
+													patchUser(u.id, { disabled: !u.disabled })
+												}
 											>
-												Save
+												{u.disabled ? "Enable" : "Disable"}
 											</button>
-										)}
-										<button
-											type="button"
-											className="ghost small-btn"
-											onClick={() => patchUser(u.id, { disabled: !u.disabled })}
-										>
-											{u.disabled ? "Enable" : "Disable"}
-										</button>
-										<button
-											type="button"
-											className="ghost small-btn"
-											onClick={() =>
-												patchUser(u.id, {
-													role: u.role === "admin" ? "user" : "admin",
-												})
-											}
-										>
-											{u.role === "admin" ? "Demote" : "Make admin"}
-										</button>
-										<button
-											type="button"
-											className="ghost small-btn"
-											onClick={() => resetPassword(u)}
-										>
-											Reset pw
-										</button>
-										<button
-											type="button"
-											className="danger small-btn"
-											onClick={() => deleteUser(u)}
-										>
-											Delete
-										</button>
-									</td>
-								</tr>
-							);
-						})}
-					</tbody>
-				</table>
-			</div>
+											<button
+												type="button"
+												className="ghost small-btn"
+												onClick={() =>
+													patchUser(u.id, {
+														role: u.role === "admin" ? "user" : "admin",
+													})
+												}
+											>
+												{u.role === "admin" ? "Demote" : "Make admin"}
+											</button>
+											<button
+												type="button"
+												className="ghost small-btn"
+												onClick={() => resetPassword(u)}
+											>
+												Reset pw
+											</button>
+											<button
+												type="button"
+												className="danger small-btn"
+												onClick={() => deleteUser(u)}
+											>
+												Delete
+											</button>
+										</td>
+									</tr>
+								);
+							})}
+						</tbody>
+					</table>
+				</div>
+			</StaggerItem>
 
-			<h3>Recent jobs</h3>
-			<div className="card table-wrap">
-				<table>
-					<thead>
-						<tr>
-							<th scope="col">Owner</th>
-							<th scope="col">Name</th>
-							<th scope="col">Schedule</th>
-							<th scope="col">Target</th>
-							<th scope="col">Last run</th>
-							<th scope="col">Last status</th>
-						</tr>
-					</thead>
-					<tbody>
-						{jobs.map((j) => (
-							<tr key={j.id} className={j.enabled ? "" : "row-off"}>
-								<td className="mono small">{j.owner}</td>
-								<td>{j.name}</td>
-								<td className="mono small">{j.schedule}</td>
-								<td className="mono small truncate">{j.target_url}</td>
-								<td>{relativeTime(j.last_run_at)}</td>
-								<td>{j.last_status ?? "—"}</td>
+			<StaggerItem className="stack">
+				<h3>Recent jobs</h3>
+				<div className="card table-wrap">
+					<table>
+						<thead>
+							<tr>
+								<th scope="col">Owner</th>
+								<th scope="col">Name</th>
+								<th scope="col">Schedule</th>
+								<th scope="col">Target</th>
+								<th scope="col">Last run</th>
+								<th scope="col">Last status</th>
 							</tr>
-						))}
-					</tbody>
-				</table>
-			</div>
-		</section>
+						</thead>
+						<tbody>
+							{jobs.map((j) => (
+								<tr key={j.id} className={j.enabled ? "" : "row-off"}>
+									<td className="mono small">{j.owner}</td>
+									<td>{j.name}</td>
+									<td className="mono small">{j.schedule}</td>
+									<td className="mono small truncate">{j.target_url}</td>
+									<td>{relativeTime(j.last_run_at)}</td>
+									<td>{j.last_status ?? "—"}</td>
+								</tr>
+							))}
+						</tbody>
+					</table>
+				</div>
+			</StaggerItem>
+		</Stagger>
 	);
 }
 
@@ -251,7 +260,9 @@ function Stat({ label, value, sub, tone = "ok" }) {
 	return (
 		<div className={`card stat ${tone}`}>
 			<dt>{label}</dt>
-			<dd className="mono">{value}</dd>
+			<dd className="num-face">
+				<CountUp value={Number(value) || 0} />
+			</dd>
 			{sub && <small className="muted">{sub}</small>}
 		</div>
 	);
@@ -259,8 +270,9 @@ function Stat({ label, value, sub, tone = "ok" }) {
 
 function QuotaCell({ used, limit }) {
 	return (
-		<span className={`mono small quota ${quotaTone(used, limit)}`}>
-			{used}/{limit} ({percent(used, limit)}%)
+		<span className={`num-face small quota ${quotaTone(used, limit)}`}>
+			{used.toLocaleString("en-US")} of {limit.toLocaleString("en-US")} (
+			{percent(used, limit)}%)
 		</span>
 	);
 }

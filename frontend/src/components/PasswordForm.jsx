@@ -49,9 +49,9 @@ export default function PasswordForm({ onClose, onSaved }) {
 				aria-label="Change password"
 				onSubmit={submit}
 				noValidate
-				initial={{ y: 16, opacity: 0 }}
-				animate={{ y: 0, opacity: 1 }}
-				exit={{ y: 16, opacity: 0 }}
+				initial={{ y: 12, opacity: 0, scale: 0.98 }}
+				animate={{ y: 0, opacity: 1, scale: 1 }}
+				exit={{ y: 8, opacity: 0, scale: 0.98 }}
 				onClick={(e) => e.stopPropagation()}
 			>
 				<h3>Change password</h3>
