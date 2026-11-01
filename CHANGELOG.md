@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-11-01
+
 ### Added
 - Change password for signed-in users; admins can set a new password for any user from the admin console.
 - Run history retention (`EZCHRONO_RUN_RETENTION_DAYS`, default 30 days; `0` keeps every run).
