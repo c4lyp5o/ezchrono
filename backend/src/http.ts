@@ -15,6 +15,8 @@ export interface Deps {
 	secret: string;
 	openSignup: boolean;
 	timezone: string;
+	/** Overrides where the built client is served from. Defaults to CLIENT_DIR. */
+	clientDir?: string;
 }
 
 export interface AuthUser {
@@ -58,4 +60,15 @@ export function requireAdmin(deps: Deps, cookie: CookieJar): AuthUser {
 	const user = requireUser(deps, cookie);
 	if (user.role !== "admin") throw new ApiError(403, "Admins only");
 	return user;
+}
+
+/**
+ * Parses a ?limit= query value: non-numeric falls back to the default, and the
+ * result is clamped to [1, max] — never NaN, zero or negative.
+ */
+export function parseLimit(raw: string | undefined, fallback: number, max: number): number {
+	if (raw === undefined || raw === "") return fallback;
+	const n = Number(raw);
+	if (!Number.isFinite(n)) return fallback;
+	return Math.min(Math.max(Math.trunc(n), 1), max);
 }

@@ -1,9 +1,9 @@
 import { Elysia, t } from "elysia";
 import crypto from "node:crypto";
-import { ApiError, requireUser, type Deps } from "../http";
+import { ApiError, parseLimit, requireUser, type Deps } from "../http";
 import { assertPublicTarget, TargetError } from "../ssrf";
 import { assertValidSchedule, nextRunAfter } from "../schedule";
-import { performRun, runsLast24h, type JobRow } from "../runner";
+import { performRun, quotaLeft, runsLast24h, type JobRow } from "../runner";
 import { TIMEZONE } from "../config";
 
 const NAME = t.String({ minLength: 1, maxLength: 80 });
@@ -210,8 +210,9 @@ export function jobRoutes(deps: Deps) {
 		.post("/:id/run", async ({ cookie, params }) => {
 			const user = requireUser(deps, cookie);
 			const job = ownJob(user.id, params.id) as unknown as JobRow;
-			// Manual runs count against the same daily quota as scheduled ones.
-			if (runsLast24h(db, user.id, Date.now()) >= user.max_runs_per_day) {
+			// Manual runs count against the same daily quota as scheduled ones,
+			// in-flight runs included so concurrent requests can't overshoot.
+			if (quotaLeft(db, user.id, user.max_runs_per_day) <= 0) {
 				throw new ApiError(429, "Daily run quota reached");
 			}
 			return performRun(db, job, "manual");
@@ -219,7 +220,7 @@ export function jobRoutes(deps: Deps) {
 		.get("/:id/runs", ({ cookie, params, query }) => {
 			const user = requireUser(deps, cookie);
 			ownJob(user.id, params.id);
-			const limit = Math.min(Number(query.limit ?? 50), 200);
+			const limit = parseLimit(query.limit, 50, 200);
 			const rows = db
 				.query(
 					`SELECT id, trigger, started_at, duration_ms, status, http_status, error

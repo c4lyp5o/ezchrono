@@ -32,9 +32,10 @@ Set `EZCHRONO_ALLOW_PRIVATE_TARGETS` only for local development. Never set it on
 | Variable | Default | Meaning |
 |---|---|---|
 | `PORT` | `5100` | HTTP port |
-| `EZCHRONO_DB` | `data/ezchrono.db` | SQLite file |
+| `EZCHRONO_DB` | `data/ezchrono.db` (repo root) | SQLite file |
 | `EZCHRONO_TZ` | `UTC` | Timezone for cron expressions |
 | `EZCHRONO_TICK_MS` | `15000` | Scheduler interval |
+| `EZCHRONO_RUN_RETENTION_DAYS` | `30` | Run history retention. `0` keeps runs forever |
 | `EZCHRONO_ADMIN_EMAIL` / `_PASSWORD` | unset | Creates the first admin when none exists (password at least 10 characters) |
 | `EZCHRONO_OPEN_SIGNUP` | off | `1` allows self sign-up. Off means accounts are created by an admin |
 | `EZCHRONO_SECRET` | generated, stored in DB | Session signing key |
@@ -57,6 +58,7 @@ The image listens on 5100 and stores data under `/app/data`. The health check is
 - Targets are checked before every call. DNS is resolved at check time, redirects are not followed, and the response body is discarded.
 - Job and run reads and writes are scoped to the owner. Other tenants' IDs return 404.
 - Session cookies are HttpOnly and SameSite=Strict. Set `NODE_ENV=production` behind HTTPS to add the Secure flag.
+- Users can change their own password; admins can set a new password for any user. Sessions are signed tokens, so a cookie issued before the change stays valid until it expires (7 days).
 - Known limit: the target check and the actual request resolve DNS separately, so a DNS rebinding attack with a very short TTL could slip through. Run ezchrono behind an egress firewall that also blocks private ranges for defence in depth.
 
 ## Tests and checks

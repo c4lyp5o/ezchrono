@@ -3,6 +3,7 @@ import { AnimatePresence, motion } from "motion/react";
 import { api } from "../api.js";
 import { relativeTime, statusTone, quotaTone, percent } from "../format.js";
 import JobForm from "./JobForm.jsx";
+import PasswordForm from "./PasswordForm.jsx";
 import RunLog from "./RunLog.jsx";
 
 export default function UserView({ quota }) {
@@ -10,6 +11,7 @@ export default function UserView({ quota }) {
 	const [usage, setUsage] = useState(null);
 	const [editing, setEditing] = useState(null); // null | "new" | job
 	const [openJob, setOpenJob] = useState(null);
+	const [pwOpen, setPwOpen] = useState(false);
 	const [error, setError] = useState("");
 
 	const load = useCallback(async () => {
@@ -83,6 +85,9 @@ export default function UserView({ quota }) {
 					disabled={jobsUsed >= jobsLimit}
 				>
 					Add cron
+				</button>
+				<button type="button" className="ghost" onClick={() => setPwOpen(true)}>
+					Change password
 				</button>
 			</div>
 
@@ -172,6 +177,16 @@ export default function UserView({ quota }) {
 						onSaved={() => {
 							setEditing(null);
 							load();
+						}}
+					/>
+				)}
+				{pwOpen && (
+					<PasswordForm
+						key="pw"
+						onClose={() => setPwOpen(false)}
+						onSaved={() => {
+							setPwOpen(false);
+							setError("");
 						}}
 					/>
 				)}

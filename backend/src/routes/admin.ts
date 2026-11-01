@@ -1,5 +1,5 @@
 import { Elysia, t } from "elysia";
-import { ApiError, requireAdmin, type Deps } from "../http";
+import { ApiError, parseLimit, requireAdmin, type Deps } from "../http";
 import { runsLast24h } from "../runner";
 
 export function adminRoutes(deps: Deps) {
@@ -21,8 +21,8 @@ export function adminRoutes(deps: Deps) {
 						(SELECT COUNT(*) FROM users WHERE disabled = 1) AS disabled_users,
 						(SELECT COUNT(*) FROM jobs) AS jobs,
 						(SELECT COUNT(*) FROM jobs WHERE enabled = 1) AS enabled_jobs,
-						(SELECT COUNT(*) FROM runs WHERE started_at > ?) AS runs_24h,
-						(SELECT COUNT(*) FROM runs WHERE started_at > ? AND status != 'ok') AS failed_24h`,
+						(SELECT COUNT(*) FROM runs WHERE started_at > ? AND status != 'quota') AS runs_24h,
+						(SELECT COUNT(*) FROM runs WHERE started_at > ? AND status NOT IN ('ok', 'quota')) AS failed_24h`,
 				)
 				.get(since, since);
 			return totals;
@@ -57,6 +57,10 @@ export function adminRoutes(deps: Deps) {
 				if (body.max_jobs !== undefined) { sets.push("max_jobs = ?"); vals.push(body.max_jobs); }
 				if (body.max_runs_per_day !== undefined) { sets.push("max_runs_per_day = ?"); vals.push(body.max_runs_per_day); }
 				if (body.min_interval_seconds !== undefined) { sets.push("min_interval_seconds = ?"); vals.push(body.min_interval_seconds); }
+				if (body.password !== undefined) {
+					sets.push("password_hash = ?");
+					vals.push(Bun.password.hashSync(body.password, "argon2id"));
+				}
 				if (sets.length) {
 					db.run(`UPDATE users SET ${sets.join(", ")} WHERE id = ?`, [...vals, params.id]);
 				}
@@ -70,6 +74,7 @@ export function adminRoutes(deps: Deps) {
 						max_jobs: t.Integer({ minimum: 0, maximum: 10000 }),
 						max_runs_per_day: t.Integer({ minimum: 0, maximum: 100000 }),
 						min_interval_seconds: t.Integer({ minimum: 60, maximum: 86400 }),
+					password: t.String({ minLength: 10, maxLength: 200 }),
 					}),
 				),
 			},
@@ -84,7 +89,7 @@ export function adminRoutes(deps: Deps) {
 		})
 		.get("/jobs", ({ cookie, query }) => {
 			requireAdmin(deps, cookie);
-			const limit = Math.min(Number(query.limit ?? 200), 1000);
+			const limit = parseLimit(query.limit, 200, 1000);
 			const rows = db
 				.query(
 					`SELECT j.id, j.name, j.schedule, j.target_url, j.method, j.enabled,

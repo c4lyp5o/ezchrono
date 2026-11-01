@@ -1,6 +1,6 @@
 import type { Database } from "bun:sqlite";
 import crypto from "node:crypto";
-import { VERSION } from "./config";
+import { RUN_RETENTION_DAYS, VERSION } from "./config";
 import { TargetError, assertPublicTarget } from "./ssrf";
 import { nextRunAfter } from "./schedule";
 
@@ -38,6 +38,41 @@ export function runsLast24h(db: Database, userId: string, now: number): number {
 	return row.n;
 }
 
+// Runs currently executing (single process). Counted against the daily quota
+// from the moment they start, so concurrent runs can't all pass the same check.
+const inFlight = new Map<string, number>();
+
+function bumpInFlight(userId: string, delta: number): void {
+	const next = (inFlight.get(userId) ?? 0) + delta;
+	if (next > 0) inFlight.set(userId, next);
+	else inFlight.delete(userId);
+}
+
+/**
+ * Quota remaining right now: the daily limit minus runs recorded in the last
+ * 24 hours minus runs still in flight.
+ */
+export function quotaLeft(
+	db: Database,
+	userId: string,
+	maxRunsPerDay: number,
+	now: number = Date.now(),
+): number {
+	return maxRunsPerDay - runsLast24h(db, userId, now) - (inFlight.get(userId) ?? 0);
+}
+
+/** Deletes run history older than the retention window. 0 days = keep forever. */
+export function pruneRuns(
+	db: Database,
+	retentionDays: number,
+	now: number = Date.now(),
+): number {
+	if (retentionDays <= 0) return 0;
+	return db.run("DELETE FROM runs WHERE started_at < ?", [
+		now - retentionDays * 24 * 60 * 60 * 1000,
+	]).changes;
+}
+
 function recordRun(
 	db: Database,
 	job: JobRow,
@@ -71,12 +106,30 @@ function recordRun(
 	return { id, ...outcome };
 }
 
-/** Calls the job's target once. Never throws: every outcome becomes a run row. */
+/**
+ * Calls the job's target once. Never throws: every outcome becomes a run row.
+ * The in-flight counter is bumped on the first synchronous line, so a quota
+ * check in the same event-loop turn already sees this run.
+ */
 export async function performRun(
 	db: Database,
 	job: JobRow,
 	trigger: Trigger,
 	now: number = Date.now(),
+): Promise<RunOutcome> {
+	bumpInFlight(job.user_id, 1);
+	try {
+		return await executeRun(db, job, trigger, now);
+	} finally {
+		bumpInFlight(job.user_id, -1);
+	}
+}
+
+async function executeRun(
+	db: Database,
+	job: JobRow,
+	trigger: Trigger,
+	now: number,
 ): Promise<RunOutcome> {
 	const started = Date.now();
 	let status: RunStatus;
@@ -169,7 +222,7 @@ export async function tick(
 		).changes;
 		if (claimed === 0) continue;
 
-		if (runsLast24h(db, job.user_id, now) >= job.max_runs_per_day) {
+		if (quotaLeft(db, job.user_id, job.max_runs_per_day, now) <= 0) {
 			recordRun(db, job, "schedule", {
 				status: "quota",
 				http_status: null,
@@ -182,5 +235,6 @@ export async function tick(
 		work.push(performRun(db, job, "schedule", now));
 	}
 	await Promise.allSettled(work);
+	pruneRuns(db, RUN_RETENTION_DAYS, now);
 	return due.length;
 }

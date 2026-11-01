@@ -1,7 +1,7 @@
 # Copy to compose.yml and fill in. Never commit real secrets.
 services:
   ezchrono:
-    image: calypso666/ezchrono:latest
+    image: ghcr.io/c4lyp5o/ezchrono:latest
     restart: unless-stopped
     ports:
       - "127.0.0.1:5100:5100"
