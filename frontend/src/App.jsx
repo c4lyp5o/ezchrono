@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { EASE, spring } from "./ez/motion";
+import Footer from "./components/Footer.jsx";
 import ThemeSwitch from "./components/ThemeSwitch.jsx";
 import { api } from "./api.js";
 import SignIn from "./components/SignIn.jsx";
@@ -129,6 +130,7 @@ export default function App() {
 							</motion.div>
 						</AnimatePresence>
 					</main>
+					<Footer />
 				</motion.div>
 			)}
 		</AnimatePresence>

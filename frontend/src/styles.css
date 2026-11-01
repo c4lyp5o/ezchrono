@@ -167,6 +167,28 @@ code {
 	color: var(--mute);
 }
 
+/* ---------- footer (ezhost style) ---------- */
+.footer {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	gap: 8px;
+	padding: 20px 0;
+	border-top: 1px solid var(--line);
+	font-size: 13px;
+	color: var(--mute);
+}
+.footer a {
+	display: inline-grid;
+	padding: 4px;
+	border-radius: 4px;
+	color: inherit;
+	transition: color 0.15s;
+}
+.footer a:hover {
+	color: var(--ink);
+}
+
 /* ---------- brand ---------- */
 .brand {
 	display: flex;
@@ -255,6 +277,7 @@ code {
 	font-size: 12px;
 }
 .content {
+	flex: 1;
 	padding: 28px 32px 64px;
 	max-width: 1200px;
 	width: 100%;
