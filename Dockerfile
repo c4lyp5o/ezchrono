@@ -1,5 +1,5 @@
 # Build the UI, then run the server. One image, one port.
-FROM oven/bun:1.4.4-alpine AS builder
+FROM oven/bun:1.4.5-alpine AS builder
 WORKDIR /app
 COPY frontend/package.json frontend/bun.lock ./frontend/
 RUN cd frontend && bun install --frozen-lockfile
@@ -8,7 +8,7 @@ COPY package.json ./
 COPY frontend ./frontend
 RUN cd frontend && bun run build
 
-FROM oven/bun:1.4.4-alpine
+FROM oven/bun:1.4.5-alpine
 WORKDIR /app
 # Reuse the image's bun user (uid:gid 1000:1000) so bind-mounted state
 # (./data) written from the container matches the host owner.

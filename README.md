@@ -66,11 +66,15 @@ The image listens on 5100 and stores data under `/app/data`. The health check is
 ```bash
 bun run test          # backend tests
 bun run typecheck     # backend types
-cd frontend && bun run check && bun run test:unit && bun run build
+bun run lint && cd frontend && bun run test:unit && bun run build   # Biome runs from the root
 ```
 
-CI runs the same checks. See [CONTRIBUTING.md](CONTRIBUTING.md) for the branch flow and release steps.
+CI runs the same checks. See [DEVELOPER.md](DEVELOPER.md#contributing) for the branch flow and release steps.
 
 ## License
 
 MIT. See [LICENSE](LICENSE).
+
+## Development
+
+Setup, commands, tests, linting and the `development` → `master` release flow are in [DEVELOPER.md](DEVELOPER.md). Changes are listed in [CHANGELOG.md](CHANGELOG.md).
