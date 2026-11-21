@@ -11,7 +11,7 @@
 		"typecheck": "cd backend && bun run typecheck",
 		"build": "cd frontend && bun run build",
 		"start": "cd backend && bun src/index.ts",
-		"check": "bun run typecheck && bun test && cd frontend && bunx biome ci && bun run build",
+		"check": "bun run typecheck && bun test && bunx biome ci frontend && cd frontend && bun run build",
 		"lint": "biome lint .",
 		"lint:fix": "biome lint --write ."
 	},

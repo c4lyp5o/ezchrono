@@ -26,10 +26,7 @@ export default defineConfig({
 			},
 		},
 	},
-	plugins: [
-		react(),
-		babel({ presets: [reactCompilerPreset()] }),
-	],
+	plugins: [react(), babel({ presets: [reactCompilerPreset()] })],
 	resolve: {
 		alias: {
 			"@": path.resolve(__dirname, "./src"),
