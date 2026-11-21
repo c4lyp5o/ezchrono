@@ -3,7 +3,13 @@
 export function Brand({ name, scope, size = 20 }) {
 	return (
 		<div className="brand">
-			<img className="mark" src="/icons/icon-192.png" alt="" width={size} height={size} />
+			<img
+				className="mark"
+				src="/icons/icon-192.png"
+				alt=""
+				width={size}
+				height={size}
+			/>
 			{name}
 			{scope && <span className="scope">{scope}</span>}
 		</div>
