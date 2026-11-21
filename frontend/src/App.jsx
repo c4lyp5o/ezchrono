@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
+import { Brand } from "./ez/Brand.jsx";
 import { EASE, spring } from "./ez/motion";
 import Footer from "./components/Footer.jsx";
 import ThemeSwitch from "./components/ThemeSwitch.jsx";
@@ -56,13 +57,7 @@ export default function App() {
 					transition={{ duration: 0.32, ease: EASE }}
 				>
 					<header className="topbar">
-						<div className="brand">
-							<span className="mark" aria-hidden="true">
-								cr
-							</span>
-							ezchrono
-							<span className="scope">Cron for HTTP</span>
-						</div>
+						<Brand name="ezchrono" scope="Cron for HTTP" />
 						<nav className="tabs" aria-label="Sections">
 							<button
 								type="button"

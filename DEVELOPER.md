@@ -81,3 +81,9 @@ bun run lint && cd frontend && bun run test:unit && bun run build
 - Every behaviour change needs a test. A bug fix needs a test that fails without the fix.
 - Format the frontend with Biome from the root: `bunx biome check --write frontend`.
 - Add a line under `## [Unreleased]` in `CHANGELOG.md` for anything a user would notice.
+
+## Frontend
+
+Vite + React 19, motion, three.js. Built into `../client`, which the backend serves. The dev server proxies `/api` to `EZCHRONO_API` (default `http://localhost:5100`).
+
+Design notes: operator console, not a marketing page. Slate neutrals, one green accent for status and the primary action, Fira Sans for UI, Fira Code for schedules and URLs. No glass, no gradients. Motion is short and tied to state; reduced-motion users get static frames.
