@@ -6,6 +6,7 @@ import { ApiError, type Deps } from "./http";
 import { authRoutes } from "./routes/auth";
 import { jobRoutes } from "./routes/jobs";
 import { adminRoutes } from "./routes/admin";
+import { logger } from "./logger";
 
 export function createApp(deps: Deps) {
 	const clientDir = deps.clientDir ?? CLIENT_DIR;
@@ -24,7 +25,7 @@ export function createApp(deps: Deps) {
 				return { error: "Not found" };
 			}
 			set.status = 500;
-			console.error("[ezchrono] unhandled error:", error);
+			logger.error("[ezchrono] unhandled error:", error);
 			return { error: "Internal server error" };
 		})
 		.use(openapi({ documentation: { info: { title: "ezchrono API", version: VERSION } } }))
