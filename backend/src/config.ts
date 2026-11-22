@@ -1,12 +1,17 @@
 import path from "node:path";
 import pkg from "../../package.json";
+import { dataDir, keepLegacy } from "./datadir";
 
 export const VERSION: string = pkg.version;
 
 export const PORT = Number(process.env.PORT ?? 5100);
-// Anchored to the repo root so the DB doesn't move with the caller's CWD.
+// All state lives under DATA_DIR (ez standard; anchored to the repo root so the
+// caller's CWD never moves it). The pre-1.0 database name is still picked up.
+const ROOT = path.resolve(import.meta.dir, "../..");
+export const DATA_DIR = dataDir(ROOT);
 export const DB_FILE =
-	process.env.EZCHRONO_DB ?? path.resolve(import.meta.dir, "../../data/ezchrono.db");
+	process.env.EZCHRONO_DB ??
+	keepLegacy(path.join(DATA_DIR, "ezchrono.sqlite"), [path.join(ROOT, "data/ezchrono.db")]);
 export const CLIENT_DIR =
 	process.env.EZCHRONO_CLIENT_DIR ??
 	path.resolve(import.meta.dir, "../../client");
