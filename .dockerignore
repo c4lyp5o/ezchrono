@@ -4,3 +4,11 @@ client
 .git
 .github
 *.md
+
+# ez standard
+**/node_modules
+**/.env
+**/.env.*
+!**/.env.example
+**/*.log
+coverage
