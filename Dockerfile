@@ -23,7 +23,7 @@ ENV TZ=Asia/Kuala_Lumpur \
 	NODE_ENV=production \
 	HOST=0.0.0.0 \
 	PORT=5100 \
-	EZCHRONO_DB=/app/data/ezchrono.db \
+	DATA_DIR=/data \
 	EZCHRONO_CLIENT_DIR=/app/client
 WORKDIR /app
 COPY backend/package.json backend/bun.lock ./backend/
@@ -31,8 +31,9 @@ RUN cd backend && bun install --production --frozen-lockfile --ignore-scripts
 COPY backend/src ./backend/src
 COPY package.json ./
 COPY --from=build /app/client ./client
-RUN mkdir -p /app/data && chown -R bun:bun /app/data
+RUN mkdir -p /data && chown -R bun:bun /data
 USER bun
+VOLUME ["/data"]
 EXPOSE 5100
 HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --start-interval=2s --retries=3 \
 	CMD wget -qO- "http://127.0.0.1:${PORT}/api/v1/health" >/dev/null || exit 1

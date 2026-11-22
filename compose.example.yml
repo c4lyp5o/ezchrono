@@ -13,4 +13,4 @@ services:
       EZCHRONO_TZ: UTC
       EZCHRONO_OPEN_SIGNUP: "0"
     volumes:
-      - ./data:/app/data
+      - ./data:/data
