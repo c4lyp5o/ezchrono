@@ -1,29 +1,40 @@
-# Build the UI, then run the server. One image, one port.
-FROM oven/bun:1.4.4-alpine AS builder
+# ez standard Dockerfile: a build stage for the frontend bundle, then an Alpine
+# runtime that runs as the unprivileged `bun` user (uid 1000) with a wget
+# healthcheck. Keep the Bun version in step with `bun-version` in .github/workflows.
+
+# ---- build: frontend bundle ----
+FROM oven/bun:1.4.5-alpine AS build
 WORKDIR /app
 COPY frontend/package.json frontend/bun.lock ./frontend/
 RUN cd frontend && bun install --frozen-lockfile
-# The footer reads the app version from the root package.json at build time.
 COPY package.json ./
 COPY frontend ./frontend
 RUN cd frontend && bun run build
 
-FROM oven/bun:1.4.4-alpine
-WORKDIR /app
-# Reuse the image's bun user (uid:gid 1000:1000) so bind-mounted state
-# (./data) written from the container matches the host owner.
-ENV NODE_ENV=production \
+# ---- runtime ----
+FROM oven/bun:1.4.5-alpine
+ARG APP_VERSION=dev
+LABEL org.opencontainers.image.title="ezchrono" \
+	org.opencontainers.image.source="https://github.com/c4lyp5o/ezchrono" \
+	org.opencontainers.image.licenses="MIT" \
+	org.opencontainers.image.version="$APP_VERSION"
+RUN apk add --no-cache tzdata
+ENV TZ=Asia/Kuala_Lumpur \
+	NODE_ENV=production \
+	HOST=0.0.0.0 \
 	PORT=5100 \
-	EZCHRONO_DB=/app/data/ezchrono.db \
+	DATA_DIR=/data \
 	EZCHRONO_CLIENT_DIR=/app/client
+WORKDIR /app
 COPY backend/package.json backend/bun.lock ./backend/
 RUN cd backend && bun install --production --frozen-lockfile --ignore-scripts
 COPY backend/src ./backend/src
 COPY package.json ./
-COPY --from=builder /app/client ./client
-RUN mkdir -p /app/data && chown -R bun:bun /app/data
+COPY --from=build /app/client ./client
+RUN mkdir -p /data /data/logs && chown -R bun:bun /data /data/logs
 USER bun
+VOLUME ["/data"]
 EXPOSE 5100
-HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
-	CMD wget -qO- "http://localhost:${PORT}/api/v1/health" || exit 1
+HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --start-interval=2s --retries=3 \
+	CMD wget -qO- "http://127.0.0.1:${PORT}/api/v1/health" >/dev/null || exit 1
 CMD ["bun", "backend/src/index.ts"]

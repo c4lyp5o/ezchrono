@@ -3,6 +3,7 @@ import { useState } from "react";
 import { api } from "../api.js";
 // The ez scene; it imports three.js lazily, so it stays out of the main bundle.
 import Backdrop from "../ez/Backdrop";
+import { Brand } from "../ez/Brand.jsx";
 import { Collapse, EASE } from "../ez/motion";
 
 export default function SignIn({ onSignedIn }) {
@@ -43,12 +44,7 @@ export default function SignIn({ onSignedIn }) {
 				animate={{ opacity: 1, y: 0 }}
 				transition={{ duration: 0.42, ease: EASE }}
 			>
-				<div className="brand">
-					<span className="mark" aria-hidden="true">
-						cr
-					</span>
-					ezchrono
-				</div>
+				<Brand name="ezchrono" />
 				<h1>
 					{mode === "signup" ? "Create an account" : "Sign in to ezchrono"}
 				</h1>

@@ -32,7 +32,8 @@ Set `EZCHRONO_ALLOW_PRIVATE_TARGETS` only for local development. Never set it on
 | Variable | Default | Meaning |
 |---|---|---|
 | `PORT` | `5100` | HTTP port |
-| `EZCHRONO_DB` | `data/ezchrono.db` (repo root) | SQLite file |
+| `DATA_DIR` | `data/` (repo root); `/data` in the image | Where all state lives |
+| `EZCHRONO_DB` | `$DATA_DIR/ezchrono.sqlite` | SQLite file (override) |
 | `EZCHRONO_TZ` | `UTC` | Timezone for cron expressions |
 | `EZCHRONO_TICK_MS` | `15000` | Scheduler interval |
 | `EZCHRONO_RUN_RETENTION_DAYS` | `30` | Run history retention. `0` keeps runs forever |
@@ -50,7 +51,7 @@ cp compose.example.yml compose.yml   # set admin email and password
 docker compose up -d
 ```
 
-The image listens on 5100 and stores data under `/app/data`. The health check is `GET /api/v1/health`.
+The image listens on 5100 and keeps all state under `/data` (mount it, e.g. `./data:/data`). The health check is `GET /api/v1/health`.
 
 ## Security notes
 
@@ -66,11 +67,15 @@ The image listens on 5100 and stores data under `/app/data`. The health check is
 ```bash
 bun run test          # backend tests
 bun run typecheck     # backend types
-cd frontend && bun run check && bun run test:unit && bun run build
+bun run lint && cd frontend && bun run test:unit && bun run build   # Biome runs from the root
 ```
 
-CI runs the same checks. See [CONTRIBUTING.md](CONTRIBUTING.md) for the branch flow and release steps.
+CI runs the same checks. See [DEVELOPER.md](DEVELOPER.md#contributing) for the branch flow and release steps.
 
 ## License
 
 MIT. See [LICENSE](LICENSE).
+
+## Development
+
+Setup, commands, tests, linting and the `development` → `master` release flow are in [DEVELOPER.md](DEVELOPER.md). Changes are listed in [CHANGELOG.md](CHANGELOG.md).
